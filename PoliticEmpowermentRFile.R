@@ -1,0 +1,922 @@
+#ECONOMIC EMP AND RIGHTS !!
+
+install.packages("psych")
+install.packages("ggplot2") #ggplot is used for high-quality graphs
+install.packages("lmtest") # to test for homo/heteroskedasticity
+install.packages("sandwich") # to use robust standard errors 
+install.packages("modelsummary", dependencies = TRUE) # this package depends on some other packages
+install.packages("corrplot") # Install the corrplot library, for a nice-looking correlation matrix
+install.packages("stargazer")
+install.packages("readxl")
+install.packages("e1071")
+install.packages("modelsummary")
+
+
+######## Call the aforementioned packages:
+library(ggplot2)
+library(lmtest)
+library(sandwich)
+library(modelsummary)
+library(corrplot)
+library(e1071)
+
+#RESTART by loading packages
+library(psych)
+library(readxl)
+library(haven)
+library(questionr)
+library(tidyverse)
+library(descr)
+library(table1)
+library(gtsummary)
+library(sjPlot)
+library(ggplot2)
+library(readr)
+library(modelsummary)
+library(dplyr)
+library(corrplot)
+library(ggdag)
+library(curl)
+library(labelled)
+library(dagitty)
+library(ggrepel)
+library(readxl)
+
+
+#load dataset
+getwd()
+setwd("C:/Users/miria/Miriam/HERTIE/TESI/R BUONAFORTUNA")
+data <- read_excel("C:/Users/miria/Miriam/HERTIE/TESI/Dataset.xlsx")
+head(data)
+str(data)
+
+
+
+
+subset3 <- data %>%
+  select(Country,
+         WEmp3_women_in_parliament,
+         Health_mortality_under5, 
+         Stunted_under5, 
+         Water_access, 
+         Mean_year_schooling_total,
+         Government_effectiveness, 
+         GDP_percapita_PPP, 
+         Urban_population, 
+         Conflict_Fragility, 
+         Net_ODAreceived, 
+         Region)
+
+
+clean3 <- subset3 %>%
+  filter(
+         !is.na(WEmp3_women_in_parliament),
+         !is.na(Health_mortality_under5), 
+         !is.na(Stunted_under5),
+         !is.na(Water_access),
+         !is.na(Mean_year_schooling_total),
+         !is.na(Government_effectiveness),
+         !is.na(GDP_percapita_PPP),
+         !is.na(Urban_population),
+         !is.na(Conflict_Fragility),
+         !is.na(Net_ODAreceived))
+
+
+
+clean3 <- clean3 %>%
+  rename(
+    WomeninParliament = WEmp3_women_in_parliament,
+    Under5Mortality = Health_mortality_under5,
+    Stunted = Stunted_under5,
+    Water = Water_access, 
+    Education = Mean_year_schooling_total,
+    Quality = Government_effectiveness, 
+    GDPpc = GDP_percapita_PPP,
+    UrbanPop = Urban_population,
+    ConflictFragility = Conflict_Fragility, 
+    NetODA = Net_ODAreceived
+  )
+
+summary(clean3)
+
+
+describe(clean3)
+
+clean3$ConflictFragility <- factor(clean3$ConflictFragility,
+                                   levels = c(0, 1),
+                                   labels = c("None", "Conflict or Fragile"))
+
+clean3$Region <- factor(clean3$Region,
+                        levels = c("EUCA", "SSA", "SA", "MENA", "LAC", "EAP"))
+
+table(clean3$Region)
+table(clean3$ConflictFragility)
+
+
+descriptive_data3 <- clean3 %>%
+  select(
+    WomeninParliament,
+    Under5Mortality,
+    Stunted,
+    Water,
+    Education,
+    Quality,
+    GDPpc,
+    UrbanPop,
+    NetODA
+  ) %>%
+  rename(
+    'Women in Parliament' = WomeninParliament,
+    'Under-5 Mortality' = Under5Mortality,
+    'Stunting Rate' = Stunted,
+    'Access to Water' = Water,
+    'Education' = Education,
+    'Government Effectiveness' = Quality,
+    'GDP per Capita' = GDPpc,
+    'Urbanization' = UrbanPop,
+    'Net ODA' = NetODA
+  )
+
+
+datasummary_skim(descriptive_data3, fmt = 2)
+
+
+
+hist(clean3$WomeninParliament)
+hist(clean3$WomeninParliament, 
+     main="Histogram of Women in Parliament", 
+     xlab="% of seat held by women in parliament (lower chamber)", 
+     ylab="Frequency", 
+     col="lightblue")
+
+hist(clean3$Under5Mortality, 
+     main="Histogram of Under 5 Mortality", 
+     xlab="Under5 Mortality per 1000 live births", 
+     ylab="Frequency", 
+     col="lightblue")
+
+#Under5Moortality is skewed
+
+hist(clean3$Stunted, 
+     main="Histogram of Stunting Under 5", 
+     xlab="% Stunted Under5", 
+     ylab="Frequency", 
+     col="lightblue")
+
+skewness(clean3$Under5Mortality, na.rm = TRUE)
+#if bigger than 1 strongly skewed, 0.5 moderately skewed
+ 
+
+hist(clean3$Water, 
+     main="Histogram of Water Access", 
+     xlab="Basic drinking water services access % of population", 
+     ylab="Frequency", 
+     col="lightblue")
+
+
+hist(clean3$Education, 
+     main="Histogram of Mean Years of Schooling", 
+     xlab="Education", 
+     ylab="Frequency", 
+     col="lightblue")
+
+
+hist(clean3$Quality, 
+     main="Histogram of Administrative Quality", 
+     xlab="Government Effectiveness", 
+     ylab="Frequency", 
+     col="lightblue")
+
+hist(clean3$GDPpc, 
+     main="Histogram of GDP per capita", 
+     xlab="GDP per capita PPP", 
+     ylab="Frequency", 
+     col="lightblue")
+#skewed and will be logged
+
+hist(clean3$UrbanPop, 
+     main="Histogram of Urban Population", 
+     xlab="Urban Population % of total population", 
+     ylab="Frequency", 
+     col="lightblue")
+
+
+
+hist(clean3$NetODA, 
+     main="Histogram of Net Development Asssitance", 
+     xlab="Conflict or institutional fragility", 
+     ylab="Frequency", 
+     col="lightblue")
+
+#CONSIDER LOGS
+
+#will log only under5 mortality and GDPpc
+
+#do correlation and scatterplot
+cor(clean3$Under5Mortality, clean3$WomeninParliament)
+#can't use cor(clean1) becuase x should be numeric
+cor(clean3[, !names(clean3) %in% c("Country","ConflictFragility", "Region")], use = "complete.obs")   #exclude variables non numeric 
+
+
+datasummary_correlation(clean3)
+
+
+plot(clean3$WomeninParliament, clean3$Under5Mortality)
+text(clean3$WomeninParliament, clean3$Under5Mortality, labels = clean3$Country, cex = 0.7, pos = 4) #allows me to put country names so can check outlier
+
+# PLOT THE REGRESSION
+ggplot(clean3, aes(x=WomeninParliament, y=Under5Mortality)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Child Mortality") +
+  labs(y="Under 5 Child Mortality", x = "% of women in parliament") +
+  theme_minimal() # changes default theme
+
+
+options(scipen=999) 
+reg16 <- lm(Under5Mortality ~ WomeninParliament, data= clean3)
+summary(reg16)
+
+
+
+#LOG
+clean3$log_Under5Mortality <- log(clean3$Under5Mortality)
+
+hist(clean3$log_Under5Mortality, 
+     main="Histogram of Under 5 Mortality log", 
+     xlab="Under5 Mortality per 1000 live births %", 
+     ylab="Frequency", 
+     col="lightblue")
+
+
+#we log GDP too
+clean3$log_GDPpc <- log(clean3$GDPpc)
+plot(clean3$log_GDPpc, clean3$log_Under5Mortality)
+
+cor(clean3$WomeninParliament, log(clean3$log_GDPpc), use = "complete.obs")
+
+datasummary_correlation(clean3)
+datasummary_correlation(
+  clean3 %>%
+    select(
+      WomeninParliament,
+      log_Under5Mortality,
+      Stunted,
+      Water,
+      Education,
+      Quality,
+      log_GDPpc,
+      UrbanPop,
+      NetODA
+    ) %>%
+    rename(
+      "Women in Parliament" = WomeninParliament,
+      "Log Under-5 Mortality" = log_Under5Mortality,
+      "Stunting Rate" = Stunted,
+      "Access to Water" = Water,
+      "Education" = Education,
+      "Government Effectiveness" = Quality,
+      "Log GDP Per Capita" = log_GDPpc,
+      "Urbanization" = UrbanPop,
+      "Net ODA" = NetODA  
+    )
+)
+
+
+
+
+plot(clean3$WomeninParliament, clean3$log_Under5Mortality)
+ggplot(clean3, aes(x=WomeninParliament, y=log_Under5Mortality)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Under-5 Mortality") +
+  labs(y="Under-5 Mortality (log)", x = "Women Seats in National Parliament (%)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+reg17 <- lm(log_Under5Mortality ~ WomeninParliament, data= clean3)
+summary(reg17)
+
+# MULTIPLE REGRESSION
+
+
+model1.20 <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc, data = clean3)
+summary(model1.20)
+
+(exp(-0.001301) - 1) * 100
+
+#only when DV is logged
+
+model2.20 <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop, data = clean3)
+summary(model2.20)
+
+model3.20 <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility, data = clean3)
+summary(model3.20)
+
+model4.20 <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA, data = clean3)
+summary(model4.20)
+
+model5.20 <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3)
+summary(model5.20) 
+
+
+(exp(-0.005137) - 1) * 100
+
+#OLS assumptions check
+
+# NORMAL DISTURBANCE
+plot(firstreg, 2)
+
+# You can see them all at once by running this line first:
+par(mfrow = c(2, 2)) 
+plot(model5.20) 
+
+
+# HOMOSCEDASTICITY
+plot(model5.20, 3) 
+
+# Breusch-Pagan test!
+library(lmtest)
+bptest(model5.20)
+
+
+
+#MULTICOLLINEARITY
+library(car)
+vif(model5.20)
+
+
+
+#INFLUENTIAL OBS
+
+?avPlots
+avPlots(model5.20)
+
+
+##
+outlier_check8 <- data.frame(
+  std_resid = rstandard(model5.20),
+  stud_resid = rstudent(model5.20),
+  cooks_d = cooks.distance(model5.20),
+  leverage = hatvalues(model5.20)
+)
+
+outlier_check8$case <- 1:nrow(outlier_check8)
+
+flagged <- subset(
+  outlier_check8,
+  abs(stud_resid) > 2 |
+    cooks_d > 4 / nrow(model.frame(model5.20)) |
+    leverage > 2 * (length(coef(model5.20)) / nrow(model.frame(model5.20)))
+)
+
+flagged
+model.frame(model5.20)[flagged$case, ]
+
+#if just cooks
+
+cooks.distance(model5.20)
+4/116
+#0.03448276
+#so it is observation 8, 45, 65, 73, 96, 108
+
+clean3_no_outliers8 <- clean3[-c(8, 45, 65, 73, 96, 108), ]
+
+model5.20_no_outliers <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_outliers8)
+summary(model5.20_no_outliers) 
+
+(exp(-0.00383230) - 1) * 100
+
+
+
+dfb20 <- dfbetas(model5.20)
+
+n <- nrow(clean3)
+threshold <- 2 / sqrt(n)
+threshold
+
+colnames(dfb20)
+
+which(abs(dfb20[, "WomeninParliament"]) > threshold) 
+
+dfb20[which(apply(abs(dfb20) > threshold, 1, any)), ]
+
+plot(dfb20)
+abline(h = c(-threshold, threshold), lty = 2)
+
+clean3_no_dfbetas20 <- clean3[-c(8, 18,  65,  80,  81,  96, 103, 113 ), ]
+
+model5.20_no_dfbetas <- lm(log_Under5Mortality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_dfbetas20)
+summary(model5.20_no_dfbetas) 
+
+
+
+#MOVING TO STUNTING 
+
+reg18 <- lm(Stunted ~ WomeninParliament, data= clean3)
+summary(reg18)
+
+plot(clean3$WomeninParliament, clean3$Stunted)
+ggplot(clean3, aes(x=WomeninParliament, y=Stunted)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Stunting Rate") +
+  labs(y ="Stunting (% of Children Under-5)" , x = "Women's Seats in National Parliament (%)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+model1.21 <- lm(Stunted ~ WomeninParliament + log_GDPpc, data = clean3)
+summary(model1.21)
+
+model5.21 <- lm(Stunted ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3)
+summary(model5.21) 
+
+
+#OLS checks
+
+# NORMAL DISTURBANCE
+plot(firstreg, 2)
+# the closer the residuals are to the diagonal line, the more normal the residuals 
+
+# You can see them all at once by running this line first:
+par(mfrow = c(2, 2)) 
+plot(model5.21) 
+
+
+# HOMOSCEDASTICITY 
+plot(model5.21, 3) 
+
+# Breusch-Pagan test!
+library(lmtest)
+bptest(model5.21)
+
+
+#MULTICOLLINEARITY
+
+library(car)
+vif(model5.21)
+
+
+#INFLUENTIAL OBS 
+?avPlots
+avPlots(model5.21)
+
+
+
+##
+outlier_check9 <- data.frame(
+  std_resid = rstandard(model5.21),
+  stud_resid = rstudent(model5.21),
+  cooks_d = cooks.distance(model5.21),
+  leverage = hatvalues(model5.21)
+)
+
+outlier_check9$case <- 1:nrow(outlier_check9)
+
+flagged <- subset(
+  outlier_check9,
+  abs(stud_resid) > 2 |
+    cooks_d > 4 / nrow(model.frame(model5.21)) |
+    leverage > 2 * (length(coef(model5.21)) / nrow(model.frame(model5.21)))
+)
+
+flagged
+model.frame(model5.21)[flagged$case, ]
+
+#if just cooks
+
+cooks.distance(model5.21)
+4/116
+#0.03448276
+
+#1, 4, 42, 47, 64, 67, 82, 83, 96, 103, 105
+
+clean3_no_outliers9 <- clean3[-c(1, 4, 42, 47, 64, 67, 82, 83, 96, 103, 105), ]
+
+model5.21_no_outliers <- lm(Stunted ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_outliers9)
+summary(model5.21_no_outliers) 
+
+#slightly bigger, not significant
+
+dfb21 <- dfbetas(model5.21)
+
+n <- nrow(clean3)
+threshold <- 2 / sqrt(n)
+threshold
+
+colnames(dfb21)
+
+which(abs(dfb21[, "WomeninParliament"]) > threshold) 
+
+dfb21[which(apply(abs(dfb21) > threshold, 1, any)), ]
+
+plot(dfb21)
+abline(h = c(-threshold, threshold), lty = 2)
+
+clean3_no_dfbetas21 <- clean3[-c(4,  17,  18,  42,  80,  83,  96, 103 ), ]
+
+model5.21_no_dfbetas <- lm(Stunted ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_dfbetas21)
+summary(model5.21_no_dfbetas) 
+
+
+
+
+#WATER ACCESS
+
+reg19 <- lm(Water ~ WomeninParliament, data= clean3)
+summary(reg19)
+
+
+ggplot(clean3, aes(x=WomeninParliament, y=Water)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Water Access") +
+  labs(y ="Water Access (% of population)" , x = "Women's Seats in National Parliament (%)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+model1.22 <- lm(Water ~ WomeninParliament + log_GDPpc, data = clean3)
+summary(model1.22)
+
+model5.22 <- lm(Water ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3)
+summary(model5.22) 
+
+
+#OLS checks
+
+# NORMAL DISTURBANCE
+plot(firstreg, 2)
+# the closer the residuals are to the diagonal line, the more normal the residuals 
+
+# You can see them all at once by running this line first:
+par(mfrow = c(2, 2)) 
+plot(model5.22) 
+
+
+# HOMOSCEDASTICITY 
+plot(model5.7, 3) 
+
+# Breusch-Pagan test!
+library(lmtest)
+bptest(model5.22)
+
+# the Breusch-Pagan test indicates heteroskedasticity (0.0009797 > 0.05)
+library(sandwich)
+corrected_errors5.22 <- coeftest(model5.22, vcov = vcovHC(model5.22, type = "HC1")) #I should run this coeftest for every regression I will run later (if needed ofc but to say that this does not make standard errors robust forever but just for that regression)
+corrected_errors5.22
+
+
+#MULTICOLLINEARITY
+
+library(car)
+vif(model5.22)
+
+
+
+#INFLUENTIAL OBS 
+
+##
+outlier_check10 <- data.frame(
+  std_resid = rstandard(model5.22),
+  stud_resid = rstudent(model5.22),
+  cooks_d = cooks.distance(model5.22),
+  leverage = hatvalues(model5.22)
+)
+
+outlier_check10$case <- 1:nrow(outlier_check10)
+
+flagged <- subset(
+  outlier_check10,
+  abs(stud_resid) > 2 |
+    cooks_d > 4 / nrow(model.frame(model5.22)) |
+    leverage > 2 * (length(coef(model5.22)) / nrow(model.frame(model5.22)))
+)
+
+
+flagged
+model.frame(model5.22)[flagged$case, ]
+
+#if just cooks
+
+cooks.distance(model5.22)
+4/116
+#0.03448276
+
+#21, 26, 45, 66, 83, 87, 109
+
+clean3_no_outliers10 <- clean3[-c(21, 26, 45, 66, 83, 87, 109), ]
+
+model5.22_no_outliers <- lm(Water ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_outliers10)
+summary(model5.22_no_outliers) 
+
+
+
+dfb22 <- dfbetas(model5.22)
+
+n <- nrow(clean3)
+threshold <- 2 / sqrt(n)
+threshold
+
+colnames(dfb22)
+
+which(abs(dfb22[, "WomeninParliament"]) > threshold) 
+
+dfb22[which(apply(abs(dfb22) > threshold, 1, any)), ]
+
+plot(dfb22)
+abline(h = c(-threshold, threshold), lty = 2)
+
+clean3_no_dfbetas22 <- clean3[-c(21,  26,  39,  80,  83,  87,  90,  96, 103  ), ]
+
+model5.22_no_dfbetas <- lm(Water ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_dfbetas22)
+summary(model5.22_no_dfbetas) 
+
+
+
+
+
+#EDUCATION
+
+reg20 <- lm(Education ~ WomeninParliament, data= clean3)
+summary(reg20)
+#significant at * level
+
+
+ggplot(clean3, aes(x=WomeninParliament, y=Education)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Education") +
+  labs(y ="Education (Mean Years of Schooling)" , x = "Women's Seats in National Parliament (%)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+model1.23 <- lm(Education ~ WomeninParliament + log_GDPpc, data = clean3)
+summary(model1.23)
+
+
+model5.23 <- lm(Education ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3)
+summary(model5.23) 
+
+
+#OLS checks
+
+# NORMAL DISTURBANCE
+plot(firstreg, 2)
+
+
+# You can see them all at once by running this line first:
+par(mfrow = c(2, 2)) 
+plot(model5.23) 
+
+
+# HOMOSCEDASTICITY 
+plot(model5.8, 3) 
+
+
+# Breusch-Pagan test!
+library(lmtest)
+bptest(model5.23)
+
+
+
+#MULTICOLLINEARITY
+
+library(car)
+vif(model5.23)
+
+
+#INFLUENTIAL OBS 
+
+##
+outlier_check11 <- data.frame(
+  std_resid = rstandard(model5.23),
+  stud_resid = rstudent(model5.23),
+  cooks_d = cooks.distance(model5.23),
+  leverage = hatvalues(model5.23)
+)
+
+outlier_check11$case <- 1:nrow(outlier_check11)
+
+flagged <- subset(
+  outlier_check11,
+  abs(stud_resid) > 2 |
+    cooks_d > 4 / nrow(model.frame(model5.23)) |
+    leverage > 2 * (length(coef(model5.23)) / nrow(model.frame(model5.23)))
+)
+
+flagged
+model.frame(model5.23)[flagged$case, ]
+
+#if just cooks
+
+cooks.distance(model5.23)
+4/116
+#0.03448276
+
+#26, 45, 58, 67, 95, 96, 107, 109
+
+clean3_no_outliers11 <- clean3[-c(26, 45, 58, 67, 95, 96, 107, 109), ]
+
+model5.23_no_outliers <- lm(Education ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_outliers11)
+summary(model5.23_no_outliers) 
+
+
+dfb23 <- dfbetas(model5.23)
+
+n <- nrow(clean3)
+threshold <- 2 / sqrt(n)
+threshold
+
+colnames(dfb23)
+
+which(abs(dfb23[, "WomeninParliament"]) > threshold) 
+
+dfb23[which(apply(abs(dfb23) > threshold, 1, any)), ]
+
+plot(dfb23)
+abline(h = c(-threshold, threshold), lty = 2)
+
+clean3_no_dfbetas23 <- clean3[-c(26, 90, 95, 96 ), ]
+
+model5.23_no_dfbetas <- lm(Education ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_dfbetas23)
+summary(model5.23_no_dfbetas) 
+
+
+#GOVERNMENT EFFECTIVENESS
+
+reg21 <- lm(Quality ~ WomeninParliament, data= clean3)
+summary(reg21)
+
+
+ggplot(clean3, aes(x=WomeninParliament, y=Quality)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)+  # Add linear regression line (by default includes 95% confidence region)
+  ggtitle("Women in Parliament and Government Effectiveness") +
+  labs(y ="Government Effectiveness" , x = "Women's Seats in National Parliament (%)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+model1.24 <- lm(Quality ~ WomeninParliament + log_GDPpc, data = clean3)
+summary(model1.24)
+
+model2.24 <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop, data = clean3)
+summary(model2.24)
+
+
+
+model3.24 <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility, data = clean3)
+summary(model3.24)
+
+model4.24 <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA, data = clean3)
+summary(model4.24)
+
+model5.24 <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3)
+summary(model5.24) 
+
+
+
+#OLS checks
+
+# NORMAL DISTURBANCE
+plot(firstreg, 2)
+
+
+# You can see them all at once by running this line first:
+par(mfrow = c(2, 2))
+plot(model5.24) 
+
+
+# HOMOSCEDASTICITY 
+plot(model5.24, 3) 
+
+
+# Breusch-Pagan test!
+library(lmtest)
+bptest(model5.24)
+
+
+#MULTICOLLINEARITY
+
+library(car)
+vif(model5.24)
+
+
+#INFLUENTIAL OBS 
+
+##
+outlier_check12 <- data.frame(
+  std_resid = rstandard(model5.24),
+  stud_resid = rstudent(model5.24),
+  cooks_d = cooks.distance(model5.24),
+  leverage = hatvalues(model5.24)
+)
+
+outlier_check12$case <- 1:nrow(outlier_check12)
+
+flagged <- subset(
+  outlier_check12,
+  abs(stud_resid) > 2 |
+    cooks_d > 4 / nrow(model.frame(model5.24)) |
+    leverage > 2 * (length(coef(model5.24)) / nrow(model.frame(model5.24)))
+)
+
+flagged
+model.frame(model5.24)[flagged$case, ]
+
+#if just cooks
+
+cooks.distance(model5.24)
+4/116
+#0.03448276
+
+#1, 11, 38, 45, 47, 52, 76, 87, 96, 109
+
+clean3_no_outliers12 <- clean3[-c(1, 11, 38, 45, 47, 52, 76, 87, 96, 109), ]
+
+model5.24_no_outliers <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_outliers12)
+summary(model5.24_no_outliers) 
+
+
+dfb24 <- dfbetas(model5.24)
+
+n <- nrow(clean3)
+threshold <- 2 / sqrt(n)
+threshold
+
+colnames(dfb24)
+
+which(abs(dfb24[, "WomeninParliament"]) > threshold) 
+
+dfb24[which(apply(abs(dfb24) > threshold, 1, any)), ]
+
+plot(dfb24)
+abline(h = c(-threshold, threshold), lty = 2)
+
+clean3_no_dfbetas24 <- clean3[-c(8, 47, 75, 87, 90, 96, 97), ]
+
+model5.24_no_dfbetas <- lm(Quality ~ WomeninParliament + log_GDPpc + UrbanPop + ConflictFragility + NetODA + Region, data = clean3_no_dfbetas24)
+summary(model5.24_no_dfbetas) 
+
+
+
+
+
+
+library(modelsummary)
+library(sandwich)
+
+modelsummary(
+  list(
+    "Under 5 Mortality" = model5.20,
+    "Stunting" = model5.21,
+    "Water Access" = model5.22,
+    "Education" = model5.23,
+    "Government Effectiveness" = model5.24
+  ),
+  vcov = list(
+    NULL,
+    NULL,
+    vcovHC(model5.22, type = "HC1"),
+    NULL,
+    NULL
+  ),
+  coef_rename = c(
+    "WomeninParliament" = "Women in Parliament (% of seats)",
+    "log_GDPpc" = "Log GDP per capita",
+    "UrbanPop" = "Urban population (%)",
+    "ConflictFragilityConflict or Fragile" = "Conflict or Fragile",
+    "NetODA" = "Net ODA (% GNI)",
+    "RegionSSA" = "Sub-Saharan Africa",
+    "RegionSA" = "South Asia",
+    "RegionMENA" = "Middle East & North Africa",
+    "RegionLAC" = "Latin America & Caribbean",
+    "RegionEAP" = "East Asia & Pacific"
+  ),
+  stars = c('*' = .1, '**' = .05, '***' = .01),
+  statistic = "({std.error})",
+  output = "WomenParliament1.png"
+)
+
+
+
+
+
